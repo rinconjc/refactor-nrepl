@@ -108,9 +108,11 @@
    (StringTokenizer. path-str File/pathSeparator)))
 
 (defn all-classpath-entries []
-  (into (map #(System/getProperty %) ["sun.boot.class.path"
-                                      "java.ext.dirs"
-                                      "java.class.path"])
+  (into (->>
+         (map #(System/getProperty %) ["sun.boot.class.path"
+                                       "java.ext.dirs"
+                                       "java.class.path"])
+         (filter some?))
         (map #(.getName %) (orchard.classpath/classpath-jarfiles))))
 
 (defn- get-available-classes []
