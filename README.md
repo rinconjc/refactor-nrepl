@@ -1,21 +1,21 @@
-[![Build Status](https://travis-ci.org/clojure-emacs/refactor-nrepl.png?branch=master)](https://travis-ci.org/clojure-emacs/refactor-nrepl)
+[![CircleCI](https://circleci.com/gh/clojure-emacs/refactor-nrepl/tree/master.svg?style=svg)](https://circleci.com/gh/clojure-emacs/refactor-nrepl/tree/master)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/clojure-emacs/refactor-nrepl?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 # Refactor nREPL
 
-nREPL middleware to support refactorings in an editor agnostic way.
+[nREPL][] middleware to support refactorings in an editor agnostic way.
 
-The role of this nREPL middleware is to provide refactoring support for clients such as [clj-refactor.el](https://github.com/clojure-emacs/clj-refactor.el).
+The role of this nREPL middleware is to provide refactoring support for clients such as [clj-refactor.el][].
 
 ## Usage
 
 ### With CIDER and clj-refactor
 
-If you're using CIDER and clj-refactor you don't have to do anything
+If you're using [CIDER][] and clj-refactor you don't have to do anything
 except call `cider-jack-in`.  The dependencies are injected
 automagically.
 
-Be aware that this isn't the case if you connect to an already running REPL process. See the [cider documentation](http://cider.readthedocs.io/en/latest/installation/) for more details.
+Be aware that this isn't the case if you connect to an already running REPL process. See the [CIDER documentation](http://cider.readthedocs.io/en/latest/installation/) for more details.
 
 ### Adding the middleware via Leiningen
 
@@ -46,7 +46,7 @@ Add the following in `~/.boot/profile.boot`:
 We've already called this a middleware, but we haven't really talked
 about what that means.  refactor-nrepl is middleware for a REPL.
 Specifically it's middleware for a networked REPL, which is managed by
-[nREPL](https://github.com/nrepl/nrepl).
+[nREPL][].
 refactor-nrepl uses the running REPL to to gain insight about your
 project, in order to offer various refactorings.
 
@@ -158,8 +158,10 @@ The `clean-ns` op will perform the following cleanups on an ns form:
 * Remove any unused namespaces, referred symbols or imported classes.
 * Remove any duplication in the :require and :import form.
 * Prune or remove any `:rename` clause.
+* Use the shorthand version of metadata found if possible, and sort it
+  alphabetically
 
-The `clean-ns` requires a `path` which is the path to the file containing the `ns` to be operated upon.
+The `clean-ns` requires a `path` which must be the absolute path to the file containing the `ns` to be operated upon. A client should also pass in a `relative-path`, which is the path relative to the project root, and which is used as a fallback when the `path` does not exist. (see [clj-refactor.el #380](https://github.com/clojure-emacs/clj-refactor.el/issues/380)).
 
 The return value, `ns` is the entire `(ns ..)` form in prestine condition, or `nil` if nothing was done (so the client doesn't update the timestamp on files when nothing actually needs doing).
 
@@ -312,11 +314,15 @@ contains among other things a full stacktrace.
 
 ## Development with `mranderson`
 
-[mranderson](https://github.com/benedekfazekas/mranderson) is used to avoid classpath collisions.
+[mranderson][] is used to avoid classpath collisions.
+
+First make sure you have Leiningen 2.9.1 or later, `lein upgrade` if necessary.
+
+`lein version`
 
 To work with `mranderson` the first thing to do is:
 
-`lein do clean, source-deps :prefix-exclusions "[\"classlojure\"]"`
+`lein do clean, inline-deps`
 
 this creates the munged local dependencies in target/srcdeps directory
 
@@ -347,12 +353,19 @@ Or alternatively run
 
 build.sh cleans, runs source-deps with the right parameters, runs the tests and then runs the provided lein target.
 
+You can also use a Makefile now: `make clean && make test` for example.
+
 ## Changelog
 
 An extensive changelog is available [here](CHANGELOG.md).
 
 ## License
 
-Copyright © 2013-2018 Benedek Fazekas, Magnar Sveen, Alex Baranosky, Lars Andersen
+Copyright © 2013-2019 Benedek Fazekas, Magnar Sveen, Alex Baranosky, Lars Andersen
 
 Distributed under the Eclipse Public License, the same as Clojure.
+
+[nREPL]:https://github.com/nrepl/nrepl
+[CIDER]:https://github.com/clojure-emacs/cider
+[clj-refactor.el]:https://github.com/clojure-emacs/clj-refactor.el
+[mranderson]:https://github.com/benedekfazekas/mranderson

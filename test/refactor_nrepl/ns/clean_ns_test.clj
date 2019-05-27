@@ -3,14 +3,16 @@
             [refactor-nrepl.config :as config]
             [refactor-nrepl.core :as core]
             [refactor-nrepl.ns.clean-ns :refer [clean-ns]]
-            [refactor-nrepl.ns.pprint :refer [pprint-ns]])
+            [refactor-nrepl.ns.pprint :refer [pprint-ns]]
+            [clojure.string :as str])
   (:import java.io.File))
 
 (defn- absolute-path [^String path]
   (.getAbsolutePath (File. path)))
 
 (defn- clean-msg [path]
-  {:path (absolute-path path)})
+  {:path (absolute-path path)
+   :relative-path path})
 
 (def ns1 (clean-msg "test/resources/ns1.clj"))
 (def ns1-cleaned (core/read-ns-form-with-meta (absolute-path "test/resources/ns1_cleaned.clj")))
@@ -38,12 +40,18 @@
 (def cljc-ns-same-clj-cljs-cleaned (core/read-ns-form-with-meta (absolute-path "test/resources/cljcns_same_clj_cljs_cleaned.cljc")))
 
 (def ns-with-shorthand-meta (clean-msg "test/resources/ns_with_shorthand_meta.clj"))
-
 (def ns-with-multiple-shorthand-meta (clean-msg "test/resources/ns_with_multiple_shorthand_meta.clj"))
+(def ns-with-gen-class-methods-meta (clean-msg "test/resources/ns_with_gen_class_methods_meta.clj"))
+(def ns-with-gen-class-methods-meta-clean (clean-msg "test/resources/ns_with_gen_class_methods_meta_clean.clj"))
+(def ns-with-lots-of-meta (clean-msg "test/resources/ns_with_lots_of_meta.clj"))
+(def ns-with-lots-of-meta-clean (clean-msg "test/resources/ns_with_lots_of_meta_clean.clj"))
 
 (def ns-with-inner-classes (clean-msg "test/resources/ns_with_inner_classes.clj"))
 
 (def ns-using-dollar (clean-msg "test/resources/ns_using_dollar.clj"))
+
+(def ns1-relative-path {:path "I do not exist.clj"
+                        :relative-path "test/resources/ns1.clj"})
 
 (deftest combines-requires
   (let [requires (core/get-ns-component (clean-ns ns2) :require)
@@ -52,7 +60,7 @@
 
 (deftest meta-preserved
   (let [cleaned (pprint-ns (clean-ns ns2-meta))]
-    (is (.contains cleaned "^{:author \"Trurl and Klapaucius\"
+    (is (str/includes? cleaned "^{:author \"Trurl and Klapaucius\"
       :doc \"test ns with meta\"}"))))
 
 (deftest rewrites-use-to-require
@@ -91,7 +99,7 @@
 (deftest throws-on-malformed-ns
   (is (thrown? IllegalStateException
                (core/read-ns-form-with-meta (.getAbsolutePath
-                                   (File. "test/resources/clojars-artifacts.edn"))))))
+                                             (File. "test/resources/clojars-artifacts.edn"))))))
 
 (deftest preserves-other-elements
   (let [actual (clean-ns ns1)
@@ -199,10 +207,20 @@
   (let [cleaned (pprint-ns (clean-ns ns-with-shorthand-meta))]
     (is (re-find #"\^:automation" cleaned))))
 
-(deftest preservres-multiple-shortand-meta
+(deftest preserves-multiple-shortand-meta
   (let [cleaned (pprint-ns (clean-ns ns-with-multiple-shorthand-meta))]
     (is (re-find #"\^:automation" cleaned))
     (is (re-find #"\^:multiple" cleaned))))
+
+(deftest preserves-gen-class-methods-meta
+  (let [actual (pprint-ns (clean-ns ns-with-gen-class-methods-meta))
+        expected (slurp (:path ns-with-gen-class-methods-meta-clean))]
+    (is (= expected actual))))
+
+(deftest preserves-all-meta
+  (let [actual (pprint-ns (clean-ns ns-with-lots-of-meta))
+        expected (slurp (:path ns-with-lots-of-meta-clean))]
+    (is (= expected actual))))
 
 (deftest does-not-remove-dollar-sign-if-valid-symbol
   (let [cleaned (pprint-ns (clean-ns ns-using-dollar))]
@@ -211,3 +229,7 @@
 (deftest does-not-break-import-for-inner-class
   (let [cleaned (pprint-ns (clean-ns ns-with-inner-classes))]
     (is (re-find #":import.*Line2D\$Double" cleaned))))
+
+(deftest fallback-to-relative-path
+  (is (= (pprint-ns (clean-ns ns1))
+         (pprint-ns (clean-ns ns1-relative-path)))))
