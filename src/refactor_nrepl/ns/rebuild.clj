@@ -60,7 +60,7 @@
   ^String [dep]
   (str/lower-case
    (if (sequential? dep)
-     (let [name (-> dep first name)
+     (let [name (-> dep first pr-str)
            ;; penalize prefix forms so [foo.bar :as bar]
            ;; comes before [foo.bar [qux :as qux] [quux ..]]
            suffix (if (and (> (count dep) 1) (sequential? (second dep)))
@@ -97,16 +97,22 @@
     :all
     (sort dependency-comparator referred)))
 
+(defn- type-preserving [f x]
+  (when x
+    (when-let [r (f x)]
+      (cond
+        (string? x) (str r)
+        (symbol? x) (symbol r)))))
+
 (defn- ns-prefix
   "Extracts the prefix from a libspec."
   [{:keys [ns]}]
-  (if (prefix ns)
-    (symbol (prefix ns))
-    :none))
+  (or (type-preserving prefix ns)
+      :none))
 
 (defn- ns-suffix
   [{:keys [ns]}]
-  (-> ns suffix symbol))
+  (type-preserving suffix ns))
 
 (defn- by-prefix
   [libspecs]
@@ -139,19 +145,13 @@
   [libspecs]
   (vec
    (for [libspec libspecs]
-     (create-libspec (update-in libspec [:ns] #(-> % suffix symbol))))))
+     (create-libspec (assoc libspec :ns (ns-suffix libspec))))))
 
 (defn- create-libspec-vectors-with-prefix
   [libspecs]
   (vec
    (for [libspec libspecs]
      (create-libspec libspec))))
-
-(defn- create-prefixed-libspec-vector
-  [libspecs]
-  (vec
-   (for [{:keys [ns] :as libspec} libspecs]
-     (create-libspec (assoc libspec :ns (ns-suffix ns))))))
 
 (defn- create-prefixed-libspec-vectors
   [[libspec & more :as libspecs]]

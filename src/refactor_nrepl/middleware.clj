@@ -5,21 +5,10 @@
             [refactor-nrepl.core :as core]
             [refactor-nrepl.ns.libspecs :refer [namespace-aliases]]
             [refactor-nrepl.stubs-for-interface :refer [stubs-for-interface]]
-            [clojure.walk :as walk]))
-
-;; Compatibility with the legacy tools.nrepl and the new nREPL 0.4.x.
-;; The assumption is that if someone is using old lein repl or boot repl
-;; they'll end up using the tools.nrepl, otherwise the modern one.
-(when-not (resolve 'set-descriptor!)
-  (if (find-ns 'clojure.tools.nrepl)
-    (require
-     '[clojure.tools.nrepl.middleware :refer [set-descriptor!]]
-     '[clojure.tools.nrepl.misc :refer [response-for]]
-     '[clojure.tools.nrepl.transport :as transport])
-    (require
-     '[nrepl.middleware :refer [set-descriptor!]]
-     '[nrepl.misc :refer [response-for]]
-     '[nrepl.transport :as transport])))
+            [clojure.walk :as walk]
+            [nrepl.middleware :refer [set-descriptor!]]
+            [nrepl.misc :refer [response-for]]
+            [nrepl.transport :as transport]))
 
 (defn- require-and-resolve [sym]
   (require (symbol (namespace sym)))
@@ -54,7 +43,7 @@
   `(with-errors-being-passed-on ~transport ~msg
      (config/with-config ~msg
        (transport/send ~transport
-                       (response-for ~msg ~(apply hash-map :status :done kvs))))))
+                       (response-for ~msg ~(apply hash-map kvs))))))
 
 (defn- bencode-friendly-data [data]
   ;; Bencode only supports byte strings, integers, lists and maps.
@@ -94,15 +83,10 @@
    (require-and-resolve 'refactor-nrepl.find.find-symbol/find-symbol)))
 
 (defn- find-symbol-reply [{:keys [transport] :as msg}]
-  (config/with-config msg
-    (with-errors-being-passed-on transport msg
-      (let [occurrences (@find-symbol msg)]
-        (doseq [occurrence occurrences
-                :let [response (serialize-response msg occurrence)]]
-          (transport/send transport
-                          (response-for msg :occurrence response)))
-        (transport/send transport (response-for msg :count (count occurrences)
-                                                :status :done))))))
+  (let [occurrences (@find-symbol msg)]
+    (doseq [occurrence occurrences]
+      (reply transport msg :occurrence (serialize-response msg occurrence)))
+    (reply transport msg :count (count occurrences) :status :done)))
 
 (def ^:private artifact-list
   (delay (require-and-resolve 'refactor-nrepl.artifacts/artifact-list)))
@@ -138,7 +122,7 @@
    (require-and-resolve 'refactor-nrepl.find.find-locals/find-used-locals)))
 
 (defn- find-used-locals-reply [{:keys [transport] :as msg}]
-  (reply transport msg :used-locals (@find-used-locals msg)))
+  (reply transport msg :used-locals (@find-used-locals msg) :status :done))
 
 (defn- version-reply [{:keys [transport] :as msg}]
   (reply transport msg :status :done :version (core/version)))
